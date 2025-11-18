@@ -38,6 +38,10 @@ public:
         glm::vec3 up;
         glm::vec3 forward;
 
+        glm::vec3 _camDir;
+        glm::vec3 _camUp;
+        glm::vec3 _camRight;
+
         float fov = 45.0f;
         float near = 0.1f;
         float far = 100.0f;
@@ -63,9 +67,6 @@ public:
         glm::mat4 GetProjection();
 
     private:
-        glm::vec3 _camDir;
-        glm::vec3 _camUp;
-        glm::vec3 _camRight;
         glm::mat4 view;
         glm::mat4 projection;
     };

@@ -83,9 +83,9 @@ void Renderer::Camera::Create(glm::vec3 pos, glm::vec3 euler, int _w, int _h, fl
 
 void Renderer::Camera::UpdateTransform() {
     //Convert the euler angle direction to a direction vector (roll not used because direction does not take into account roll)
-    _camDir.x = cos(glm::radians(direction.z)) * cos(glm::radians(direction.x));
+    _camDir.x = cos(glm::radians(direction.y)) * cos(glm::radians(direction.x));
     _camDir.y = sin(glm::radians(direction.x));
-    _camDir.z = sin(glm::radians(direction.z)) * cos(glm::radians(direction.x));
+    _camDir.z = sin(glm::radians(direction.y)) * cos(glm::radians(direction.x));
     _camDir = glm::normalize(_camDir);
 
     //Find direction vectors of the camera

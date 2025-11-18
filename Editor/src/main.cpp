@@ -13,271 +13,14 @@
 #include "stb_image.h"
 
 #include <SticksEngine/Render/Shader.h>
+#include <SticksEngine/Render/Renderer.h>
 
 bool FPS_COUNTER = false;
 bool WIREFRAME = false;
 
-glm::vec3 EDITOR_CAMERA_POS = glm::vec3(0, 0, 0);
-
-struct RenderTarget {
-    GLuint fbo = 0; //Frame Buffer Object
-    GLuint colorTex = 0;
-    GLuint depthRb = 0;
-    int width = 800;
-    int height = 600;
-
-    //TEMPORARY
-    GLuint vbo;
-    GLuint vao;
-    GLuint ebo;
-
-    glm::mat4 transform;
-    glm::mat4 view;
-    glm::mat4 projection;
-
-    void Create(int w, int h) {
-        width = w;
-        height = h;
-
-        //TEMPORARY
-        float vertices[] = {
-            -0.5f, -0.5f, 0.5f, 1, 0, 0, 0, 0,
-            0.5f, -0.5f, 0.5f, 1, 0, 0, 1, 0,
-            0.5f, 0.5f, 0.5f, 1, 0, 0, 1, 1,
-
-            0.5f, 0.5f, 0.5f, 1, 0, 0, 1, 1,
-            -0.5f, 0.5f, 0.5f, 1, 0, 0, 0, 1,
-            -0.5f, -0.5f, 0.5f, 1, 0, 0, 0, 0,
-
-            // ---- BACK FACE ----
-            -0.5f, -0.5f, -0.5f, 0, 1, 0, 1, 0,
-            0.5f, -0.5f, -0.5f, 0, 1, 0, 0, 0,
-            0.5f, 0.5f, -0.5f, 0, 1, 0, 0, 1,
-
-            0.5f, 0.5f, -0.5f, 0, 1, 0, 0, 1,
-            -0.5f, 0.5f, -0.5f, 0, 1, 0, 1, 1,
-            -0.5f, -0.5f, -0.5f, 0, 1, 0, 1, 0,
-
-            // ---- LEFT FACE ----
-            -0.5f, -0.5f, -0.5f, 0, 0, 1, 0, 0,
-            -0.5f, -0.5f, 0.5f, 0, 0, 1, 1, 0,
-            -0.5f, 0.5f, 0.5f, 0, 0, 1, 1, 1,
-
-            -0.5f, 0.5f, 0.5f, 0, 0, 1, 1, 1,
-            -0.5f, 0.5f, -0.5f, 0, 0, 1, 0, 1,
-            -0.5f, -0.5f, -0.5f, 0, 0, 1, 0, 0,
-
-            // ---- RIGHT FACE ----
-            0.5f, -0.5f, -0.5f, 1, 1, 0, 1, 0,
-            0.5f, -0.5f, 0.5f, 1, 1, 0, 0, 0,
-            0.5f, 0.5f, 0.5f, 1, 1, 0, 0, 1,
-
-            0.5f, 0.5f, 0.5f, 1, 1, 0, 0, 1,
-            0.5f, 0.5f, -0.5f, 1, 1, 0, 1, 1,
-            0.5f, -0.5f, -0.5f, 1, 1, 0, 1, 0,
-
-            // ---- TOP FACE ----
-            -0.5f, 0.5f, 0.5f, 1, 0, 1, 0, 0,
-            0.5f, 0.5f, 0.5f, 1, 0, 1, 1, 0,
-            0.5f, 0.5f, -0.5f, 1, 0, 1, 1, 1,
-
-            0.5f, 0.5f, -0.5f, 1, 0, 1, 1, 1,
-            -0.5f, 0.5f, -0.5f, 1, 0, 1, 0, 1,
-            -0.5f, 0.5f, 0.5f, 1, 0, 1, 0, 0,
-
-            // ---- BOTTOM FACE ----
-            -0.5f, -0.5f, 0.5f, 0, 1, 1, 0, 0,
-            0.5f, -0.5f, 0.5f, 0, 1, 1, 1, 0,
-            0.5f, -0.5f, -0.5f, 0, 1, 1, 1, 1,
-
-            0.5f, -0.5f, -0.5f, 0, 1, 1, 1, 1,
-            -0.5f, -0.5f, -0.5f, 0, 1, 1, 0, 1,
-            -0.5f, -0.5f, 0.5f, 0, 1, 1, 0, 0
-        };
-
-        unsigned int indices[] = {
-            0, 1, 2,
-            3, 4, 5,
-
-            6, 7, 8,
-            9, 10, 11,
-
-            12, 13, 14,
-            15, 16, 17,
-
-            18, 19, 20,
-            21, 22, 23,
-
-            24, 25, 26,
-            27, 28, 29,
-
-            30, 31, 32,
-            33, 34, 35
-        };
-
-        //Enable Depth Testing to remove overlapping
-        glEnable(GL_DEPTH_TEST);
-
-        //Create the frame buffer and assign it to the frame buffer index
-        glGenFramebuffers(1, &fbo);
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-        //Create the color texture that is rendered to
-        glGenTextures(1, &colorTex);
-        glBindTexture(GL_TEXTURE_2D, colorTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); //Scaling parameters
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); //Scaling parameters
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTex, 0);
-
-        //Now the depth render buffer
-        glGenRenderbuffers(1, &depthRb);
-        glBindRenderbuffer(GL_RENDERBUFFER, depthRb);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depthRb);
-
-        //Check if the frame buffer was created succesfully
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-            std::cout << "Frame Buffer is not complete!" << std::endl;
-        }
-
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-        ///
-        ///TODO: MOVE THIS TO SEPERATE OBJECT
-        ///
-        //Generate the Vertex Buffer Object
-        glGenBuffers(1, &vbo);
-        glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        //TODO: Make GL_STATIC_DRAW changeable in the future, do same for VAO (DYNAMIC AND STREAM are faster to access so are better for constantly changing vertices_
-        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-        //Generate the Vertex Array Object
-        glGenVertexArrays(1, &vao);
-        glBindVertexArray(vao);
-
-        //Position Attribute
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) 0);
-        glEnableVertexAttribArray(0);
-
-        //Color Attribute
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (3 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-
-        //Texture Coord Attribute
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *) (6 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        //Now we create the EBO
-        glGenBuffers(1, &ebo);
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-        //Translation
-        transform = glm::mat4(1.0f);
-        transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, -3.0f));
-        transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 1.0f));
-        transform = glm::scale(transform, glm::vec3(1.0f, 1.0f, 1.0f));
-
-        //View, this is translated in the OPPOSITE direction of where we want to go
-        view = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-
-        //Projection
-        //TODO: Create setting to change projection type and FOV
-        projection = glm::perspective(glm::radians(45.0f), (float) w / (float) h, 0.1f, 100.0f);
-    }
-
-    void Resize(int w, int h) {
-        width = w;
-        height = h;
-
-        glBindTexture(GL_TEXTURE_2D, colorTex);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
-
-        glBindRenderbuffer(GL_RENDERBUFFER, depthRb);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-
-        //TODO: Create setting to change projection type and FOV
-        projection = glm::perspective(glm::radians(45.0f), (float) w / (float) h, 0.1f, 100.0f);
-    }
-
-    //TODO: Take in scene object that contains all objects
-    void RenderSceneToSelf(int w, int h, Shader *shader, GLuint *texture1, GLuint *texture2) {
-        //Resize if needed
-        if (w != width || h != height) {
-            Resize(w, h);
-        }
-
-        glm::vec3 positions[] = {
-            glm::vec3(0.0f, 0.0f, 0.0f),
-            glm::vec3(2.0f, 5.0f, -15.0f),
-            glm::vec3(-1.5f, -2.2f, -2.5f),
-            glm::vec3(-3.8f, -2.0f, -12.3f),
-            glm::vec3(2.4f, -0.4f, -3.5f),
-            glm::vec3(-1.7f, 3.0f, -7.5f),
-            glm::vec3(1.3f, -2.0f, -2.5f),
-            glm::vec3(1.5f, 2.0f, -2.5f),
-            glm::vec3(1.5f, 0.2f, -1.5f),
-            glm::vec3(-1.3f, 1.0f, -1.5f)
-        };
-
-        //Change to this FBO
-        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-
-        //Change the viewport to new dimensions if changed
-        glViewport(0, 0, w, h);
-
-        //Fill screen with solid color
-        glClearColor(144.0f / 255.0f, 213.0f / 255.0f, 1.0f, 1.0f);
-
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-        //Start using shader
-        shader->use();
-
-        //Set transform, view, and projection matrices
-        shader->setMatrix4fv("view", view);
-        shader->setMatrix4fv("projection", projection);
-
-        //Bind texture 1
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, *texture1);
-
-        //Bind texture 2
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, *texture2);
-
-        //Bind vertex array
-        glBindVertexArray(vao);
-
-        float time = SDL_GetTicks() / 1000.0f;
-        for (unsigned int i = 0; i < 10; i++) {
-            //Rotate Mesh
-            transform = glm::mat4(1.0f);
-            transform = glm::translate(transform, positions[i]);
-            transform = glm::rotate(transform, i * 20.0f, glm::vec3(0.2f, 0.5f, 0.7f));
-            transform = glm::rotate(transform, time + (i * 20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-            transform = glm::scale(transform, glm::vec3(1.0f, 1.0f, 1.0f));
-
-            //Update transform matrix uniform
-            shader->setMatrix4fv("transform", transform);
-
-            //Draw
-            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-        }
-
-        //Set back to normal
-        glBindVertexArray(0);
-
-        //Set FBO back to default
-        glUseProgram(0);
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    }
-
-    void Clean() {
-    }
-};
+glm::vec3 EDITOR_CAMERA_POS = glm::vec3(0, 0, 10);
+float EDITOR_CAMERA_YAW = -90.0f;
+float EDITOR_CAMERA_PITCH = 0.0f;
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
@@ -381,9 +124,8 @@ int main() {
     shader.setInt("uTexture1", 0);
     shader.setInt("uTexture2", 1);
 
-    //FBO for editor renderer
-    RenderTarget viewport;
-    viewport.Create(800, 600);
+    //Create the renderer component for the viewport
+    Renderer viewport(Renderer::RenderTarget(800, 600), Renderer::Camera(EDITOR_CAMERA_POS, glm::vec3(EDITOR_CAMERA_PITCH, EDITOR_CAMERA_YAW, 0), 800, 600, 45.0));
 
     ///
     /// MAIN LOOP
@@ -399,6 +141,7 @@ int main() {
         ///
         Uint64 now = SDL_GetPerformanceCounter();
         double delta = (double) (now - last) * 1000.0 / freq;
+        float deltaTime = delta / 1000.0;
 
         if (delta < 1000.0 / 60.0) {
             SDL_Delay(0);
@@ -480,12 +223,39 @@ int main() {
         ImGui::SetNextWindowSize({800, 600}, ImGuiCond_FirstUseEver);
         ImGui::Begin("Scene");
 
+        //Check if user is right clicking frame
+        if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
+            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
+
+            EDITOR_CAMERA_YAW += delta.x * 45.0f * deltaTime;
+            EDITOR_CAMERA_PITCH += delta.y * -45.0f * deltaTime;
+
+            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
+
+            if (ImGui::IsKeyDown(ImGuiKey_W)) {
+                EDITOR_CAMERA_POS += 10.0f * viewport.camera._camDir * deltaTime;
+            }
+            if (ImGui::IsKeyDown(ImGuiKey_S)) {
+                EDITOR_CAMERA_POS -= 10.0f * viewport.camera._camDir * deltaTime;
+            }
+            if (ImGui::IsKeyDown(ImGuiKey_A)) {
+                EDITOR_CAMERA_POS -= 10.0f * viewport.camera._camRight * deltaTime;
+            }
+            if (ImGui::IsKeyDown(ImGuiKey_D)) {
+                EDITOR_CAMERA_POS += 10.0f * viewport.camera._camRight * deltaTime;
+            }
+
+            viewport.camera.position = EDITOR_CAMERA_POS;
+            viewport.camera.direction = glm::vec3(EDITOR_CAMERA_PITCH, EDITOR_CAMERA_YAW, 0);
+            viewport.camera.UpdateTransform();
+        }
+
         //Render the scene to the FBO
         ImVec2 size = ImGui::GetContentRegionAvail();
-        viewport.RenderSceneToSelf((int) size.x, (int) size.y, &shader, &textureID1, &textureID2);
+        viewport.Render((int) size.x, (int) size.y, &shader, &textureID1, &textureID2);
 
         //Put the FBO texture onto a image
-        ImGui::Image((ImTextureID) (intptr_t) viewport.colorTex, size, ImVec2(0, 1), ImVec2(1, 0));
+        ImGui::Image((ImTextureID) (intptr_t) viewport.target.colorTex, size, ImVec2(0, 1), ImVec2(1, 0));
 
         ImGui::End();
 
@@ -535,8 +305,6 @@ int main() {
     }
 
     // cleanup
-    viewport.Clean();
-
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
