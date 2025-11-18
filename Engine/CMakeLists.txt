@@ -14,6 +14,8 @@ add_library(Engine STATIC
         src/Shader.cpp
         include/SticksEngine/Render/Shader.h
         src/STB.cpp
+        src/Renderer.cpp
+        include/SticksEngine/Render/Renderer.h
 )
 
 target_link_libraries(Engine PUBLIC glad::glad)

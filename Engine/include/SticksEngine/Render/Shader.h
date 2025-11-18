@@ -9,6 +9,8 @@
 #include <iostream>
 #include <sstream>
 #include <glad/glad.h>
+#include <glm/mat4x4.hpp>
+
 #include "imgui_impl_opengl3_loader.h"
 #include "imgui_impl_sdl3.h"
 
@@ -25,6 +27,8 @@ public:
     void setInt(const std::string &name, int value) const;
 
     void setFloat(const std::string &name, float value) const;
+
+    void setMatrix4fv(const std::string &name, glm::mat4 value) const;
 };
 
 #endif //STICKSENGINE_SHADER_H

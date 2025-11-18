@@ -7,13 +7,17 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl3.h"
-
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include "stb_image.h"
 
 #include <SticksEngine/Render/Shader.h>
 
 bool FPS_COUNTER = false;
 bool WIREFRAME = false;
+
+glm::vec3 EDITOR_CAMERA_POS = glm::vec3(0, 0, 0);
 
 struct RenderTarget {
     GLuint fbo = 0; //Frame Buffer Object
@@ -27,22 +31,92 @@ struct RenderTarget {
     GLuint vao;
     GLuint ebo;
 
+    glm::mat4 transform;
+    glm::mat4 view;
+    glm::mat4 projection;
+
     void Create(int w, int h) {
         width = w;
         height = h;
 
         //TEMPORARY
         float vertices[] = {
-            // positions        // colors       // texture coords
-            0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
-            0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-            -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
-            -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f // top left
+            -0.5f, -0.5f, 0.5f, 1, 0, 0, 0, 0,
+            0.5f, -0.5f, 0.5f, 1, 0, 0, 1, 0,
+            0.5f, 0.5f, 0.5f, 1, 0, 0, 1, 1,
+
+            0.5f, 0.5f, 0.5f, 1, 0, 0, 1, 1,
+            -0.5f, 0.5f, 0.5f, 1, 0, 0, 0, 1,
+            -0.5f, -0.5f, 0.5f, 1, 0, 0, 0, 0,
+
+            // ---- BACK FACE ----
+            -0.5f, -0.5f, -0.5f, 0, 1, 0, 1, 0,
+            0.5f, -0.5f, -0.5f, 0, 1, 0, 0, 0,
+            0.5f, 0.5f, -0.5f, 0, 1, 0, 0, 1,
+
+            0.5f, 0.5f, -0.5f, 0, 1, 0, 0, 1,
+            -0.5f, 0.5f, -0.5f, 0, 1, 0, 1, 1,
+            -0.5f, -0.5f, -0.5f, 0, 1, 0, 1, 0,
+
+            // ---- LEFT FACE ----
+            -0.5f, -0.5f, -0.5f, 0, 0, 1, 0, 0,
+            -0.5f, -0.5f, 0.5f, 0, 0, 1, 1, 0,
+            -0.5f, 0.5f, 0.5f, 0, 0, 1, 1, 1,
+
+            -0.5f, 0.5f, 0.5f, 0, 0, 1, 1, 1,
+            -0.5f, 0.5f, -0.5f, 0, 0, 1, 0, 1,
+            -0.5f, -0.5f, -0.5f, 0, 0, 1, 0, 0,
+
+            // ---- RIGHT FACE ----
+            0.5f, -0.5f, -0.5f, 1, 1, 0, 1, 0,
+            0.5f, -0.5f, 0.5f, 1, 1, 0, 0, 0,
+            0.5f, 0.5f, 0.5f, 1, 1, 0, 0, 1,
+
+            0.5f, 0.5f, 0.5f, 1, 1, 0, 0, 1,
+            0.5f, 0.5f, -0.5f, 1, 1, 0, 1, 1,
+            0.5f, -0.5f, -0.5f, 1, 1, 0, 1, 0,
+
+            // ---- TOP FACE ----
+            -0.5f, 0.5f, 0.5f, 1, 0, 1, 0, 0,
+            0.5f, 0.5f, 0.5f, 1, 0, 1, 1, 0,
+            0.5f, 0.5f, -0.5f, 1, 0, 1, 1, 1,
+
+            0.5f, 0.5f, -0.5f, 1, 0, 1, 1, 1,
+            -0.5f, 0.5f, -0.5f, 1, 0, 1, 0, 1,
+            -0.5f, 0.5f, 0.5f, 1, 0, 1, 0, 0,
+
+            // ---- BOTTOM FACE ----
+            -0.5f, -0.5f, 0.5f, 0, 1, 1, 0, 0,
+            0.5f, -0.5f, 0.5f, 0, 1, 1, 1, 0,
+            0.5f, -0.5f, -0.5f, 0, 1, 1, 1, 1,
+
+            0.5f, -0.5f, -0.5f, 0, 1, 1, 1, 1,
+            -0.5f, -0.5f, -0.5f, 0, 1, 1, 0, 1,
+            -0.5f, -0.5f, 0.5f, 0, 1, 1, 0, 0
         };
+
         unsigned int indices[] = {
-            0, 1, 3, // first triangle
-            1, 2, 3 // second triangle
+            0, 1, 2,
+            3, 4, 5,
+
+            6, 7, 8,
+            9, 10, 11,
+
+            12, 13, 14,
+            15, 16, 17,
+
+            18, 19, 20,
+            21, 22, 23,
+
+            24, 25, 26,
+            27, 28, 29,
+
+            30, 31, 32,
+            33, 34, 35
         };
+
+        //Enable Depth Testing to remove overlapping
+        glEnable(GL_DEPTH_TEST);
 
         //Create the frame buffer and assign it to the frame buffer index
         glGenFramebuffers(1, &fbo);
@@ -98,6 +172,20 @@ struct RenderTarget {
         glGenBuffers(1, &ebo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+        //Translation
+        transform = glm::mat4(1.0f);
+        transform = glm::translate(transform, glm::vec3(0.0f, 0.0f, -3.0f));
+        transform = glm::rotate(transform, glm::radians(45.0f), glm::vec3(1.0f, 0.0f, 1.0f));
+        transform = glm::scale(transform, glm::vec3(1.0f, 1.0f, 1.0f));
+
+        //View, this is translated in the OPPOSITE direction of where we want to go
+        view = glm::mat4(1.0f);
+        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+
+        //Projection
+        //TODO: Create setting to change projection type and FOV
+        projection = glm::perspective(glm::radians(45.0f), (float) w / (float) h, 0.1f, 100.0f);
     }
 
     void Resize(int w, int h) {
@@ -109,6 +197,9 @@ struct RenderTarget {
 
         glBindRenderbuffer(GL_RENDERBUFFER, depthRb);
         glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+
+        //TODO: Create setting to change projection type and FOV
+        projection = glm::perspective(glm::radians(45.0f), (float) w / (float) h, 0.1f, 100.0f);
     }
 
     //TODO: Take in scene object that contains all objects
@@ -117,6 +208,19 @@ struct RenderTarget {
         if (w != width || h != height) {
             Resize(w, h);
         }
+
+        glm::vec3 positions[] = {
+            glm::vec3(0.0f, 0.0f, 0.0f),
+            glm::vec3(2.0f, 5.0f, -15.0f),
+            glm::vec3(-1.5f, -2.2f, -2.5f),
+            glm::vec3(-3.8f, -2.0f, -12.3f),
+            glm::vec3(2.4f, -0.4f, -3.5f),
+            glm::vec3(-1.7f, 3.0f, -7.5f),
+            glm::vec3(1.3f, -2.0f, -2.5f),
+            glm::vec3(1.5f, 2.0f, -2.5f),
+            glm::vec3(1.5f, 0.2f, -1.5f),
+            glm::vec3(-1.3f, 1.0f, -1.5f)
+        };
 
         //Change to this FBO
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
@@ -129,15 +233,41 @@ struct RenderTarget {
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        //Draw
-        //glUseProgram(program_id);
+        //Start using shader
         shader->use();
+
+        //Set transform, view, and projection matrices
+        shader->setMatrix4fv("view", view);
+        shader->setMatrix4fv("projection", projection);
+
+        //Bind texture 1
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, *texture1);
+
+        //Bind texture 2
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, *texture2);
+
+        //Bind vertex array
         glBindVertexArray(vao);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        float time = SDL_GetTicks() / 1000.0f;
+        for (unsigned int i = 0; i < 10; i++) {
+            //Rotate Mesh
+            transform = glm::mat4(1.0f);
+            transform = glm::translate(transform, positions[i]);
+            transform = glm::rotate(transform, i * 20.0f, glm::vec3(0.2f, 0.5f, 0.7f));
+            transform = glm::rotate(transform, time + (i * 20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+            transform = glm::scale(transform, glm::vec3(1.0f, 1.0f, 1.0f));
+
+            //Update transform matrix uniform
+            shader->setMatrix4fv("transform", transform);
+
+            //Draw
+            glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+        }
+
+        //Set back to normal
         glBindVertexArray(0);
 
         //Set FBO back to default
@@ -206,7 +336,7 @@ int main() {
 
     //Load Image
     int imgWidth, imgHeight, imgChannels;
-    unsigned char *data = stbi_load("assets/wall.jpg", &imgWidth, &imgHeight, &imgChannels, 0);
+    unsigned char *data = stbi_load("assets/img.jpg", &imgWidth, &imgHeight, &imgChannels, 0);
     if (!data) {
         std::cout << "Failed to load image" << std::endl;
     }
@@ -258,8 +388,25 @@ int main() {
     ///
     /// MAIN LOOP
     ///
+
+    //FPS Tracking
+    Uint64 freq = SDL_GetPerformanceFrequency();
+    Uint64 last = SDL_GetPerformanceCounter();
     bool running = true;
     while (running) {
+        ///
+        /// FPS LIMITING
+        ///
+        Uint64 now = SDL_GetPerformanceCounter();
+        double delta = (double) (now - last) * 1000.0 / freq;
+
+        if (delta < 1000.0 / 60.0) {
+            SDL_Delay(0);
+            continue;
+        }
+
+        last = now;
+
         ///
         /// Event Handling
         ///
@@ -320,7 +467,7 @@ int main() {
             //Debug Info
             ImGui::Separator();
             if (FPS_COUNTER) {
-                ImGui::Text("FPS: %f", ImGui::GetIO().Framerate);
+                ImGui::Text("FPS: %f", 1000.0 / delta);
             }
 
             ImGui::EndMainMenuBar();
