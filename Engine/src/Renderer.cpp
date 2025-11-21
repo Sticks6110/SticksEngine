@@ -99,11 +99,6 @@ void Renderer::Camera::UpdateTransform() {
 void Renderer::Camera::UpdateProjection() {
     //Set the projection matrix with new values
     projection = glm::perspective(glm::radians(fov), (float) w / (float) h, near, far);
-
-    std::cout << w << " " << h << " " << near << " " << far << std::endl;
-    std::cout << _camDir.x << " " << _camDir.y << " " << _camDir.z << std::endl;
-    std::cout << _camRight.x << " " << _camRight.y << " " << _camRight.z << std::endl;
-    std::cout << _camUp.x << " " << _camUp.y << " " << _camUp.z << std::endl;
 }
 
 void Renderer::Camera::Resize(int _w, int _h) {

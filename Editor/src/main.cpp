@@ -1,3 +1,4 @@
+#define IMGUI_IMPL_OPENGL_LOADER_GLAD
 #include <iostream>
 #include <fstream>
 #include <glad/glad.h>
@@ -7,6 +8,7 @@
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
 #include "imgui_impl_sdl3.h"
+#include "ImReflect.hpp"
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -15,12 +17,12 @@
 #include <SticksEngine/Render/Shader.h>
 #include <SticksEngine/Render/Renderer.h>
 
+#include "SticksEngine/GameObject.h"
+#include "SticksEngine/Scene.h"
+#include "Windows/SceneWindow.h"
+
 bool FPS_COUNTER = false;
 bool WIREFRAME = false;
-
-glm::vec3 EDITOR_CAMERA_POS = glm::vec3(0, 0, 10);
-float EDITOR_CAMERA_YAW = -90.0f;
-float EDITOR_CAMERA_PITCH = 0.0f;
 
 int main() {
     std::cout << "Hello, World!" << std::endl;
@@ -77,55 +79,17 @@ int main() {
     //Flip STBI images vertically so they render the right way
     stbi_set_flip_vertically_on_load(true);
 
-    //Load Image
-    int imgWidth, imgHeight, imgChannels;
-    unsigned char *data = stbi_load("assets/img.jpg", &imgWidth, &imgHeight, &imgChannels, 0);
-    if (!data) {
-        std::cout << "Failed to load image" << std::endl;
-    }
+    //Test Scene
+    Scene *scene = new Scene("Scene Name");
+    GameObject g1(scene, "Game Object 1");
+    GameObject g2(scene, "Game Object 2", &g1);
+    GameObject g3(scene, "Game Object 3", &g1);
+    GameObject g4(scene, "Game Object 4", &g3);
+    GameObject g5(scene, "Game Object 5");
+    scene->DebugPrint();
 
-    //Generate Texture
-    GLuint textureID1;
-    glGenTextures(1, &textureID1);
-    glBindTexture(GL_TEXTURE_2D, textureID1);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imgWidth, imgHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    stbi_image_free(data);
-
-    //Load Image
-    int imgWidth2, imgHeight2, imgChannels2;
-    unsigned char *data2 = stbi_load("assets/container.jpg", &imgWidth2, &imgHeight2, &imgChannels2, 0);
-    if (!data2) {
-        std::cout << "Failed to load image" << std::endl;
-    }
-
-    //Generate Texture
-    GLuint textureID2;
-    glGenTextures(1, &textureID2);
-    glBindTexture(GL_TEXTURE_2D, textureID2);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, imgWidth2, imgHeight2, 0, GL_RGB, GL_UNSIGNED_BYTE, data2);
-    glGenerateMipmap(GL_TEXTURE_2D);
-
-    //Free the data
-    stbi_image_free(data2);
-
-    //Shader
-    Shader shader("assets/vertex.glsl", "assets/fragment.glsl");
-    shader.use();
-    shader.setInt("uTexture1", 0);
-    shader.setInt("uTexture2", 1);
-
-    //Create the renderer component for the viewport
-    Renderer viewport(Renderer::RenderTarget(800, 600), Renderer::Camera(EDITOR_CAMERA_POS, glm::vec3(EDITOR_CAMERA_PITCH, EDITOR_CAMERA_YAW, 0), 800, 600, 45.0));
+    //Create Scene Editor Window
+    SceneWindow scene_window(scene);
 
     ///
     /// MAIN LOOP
@@ -220,44 +184,7 @@ int main() {
         ImGui::DockSpaceOverViewport();
 
         //Create Scene View
-        ImGui::SetNextWindowSize({800, 600}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Scene");
-
-        //Check if user is right clicking frame
-        if (ImGui::IsMouseDown(ImGuiMouseButton_Right)) {
-            ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Right);
-
-            EDITOR_CAMERA_YAW += delta.x * 45.0f * deltaTime;
-            EDITOR_CAMERA_PITCH += delta.y * -45.0f * deltaTime;
-
-            ImGui::ResetMouseDragDelta(ImGuiMouseButton_Right);
-
-            if (ImGui::IsKeyDown(ImGuiKey_W)) {
-                EDITOR_CAMERA_POS += 10.0f * viewport.camera._camDir * deltaTime;
-            }
-            if (ImGui::IsKeyDown(ImGuiKey_S)) {
-                EDITOR_CAMERA_POS -= 10.0f * viewport.camera._camDir * deltaTime;
-            }
-            if (ImGui::IsKeyDown(ImGuiKey_A)) {
-                EDITOR_CAMERA_POS -= 10.0f * viewport.camera._camRight * deltaTime;
-            }
-            if (ImGui::IsKeyDown(ImGuiKey_D)) {
-                EDITOR_CAMERA_POS += 10.0f * viewport.camera._camRight * deltaTime;
-            }
-
-            viewport.camera.position = EDITOR_CAMERA_POS;
-            viewport.camera.direction = glm::vec3(EDITOR_CAMERA_PITCH, EDITOR_CAMERA_YAW, 0);
-            viewport.camera.UpdateTransform();
-        }
-
-        //Render the scene to the FBO
-        ImVec2 size = ImGui::GetContentRegionAvail();
-        viewport.Render((int) size.x, (int) size.y, &shader, &textureID1, &textureID2);
-
-        //Put the FBO texture onto a image
-        ImGui::Image((ImTextureID) (intptr_t) viewport.target.colorTex, size, ImVec2(0, 1), ImVec2(1, 0));
-
-        ImGui::End();
+        scene_window.Render(deltaTime);
 
         //Create the File Views
         //SRC
@@ -273,17 +200,20 @@ int main() {
         //Create the Console View
         ImGui::SetNextWindowSize({800, 400}, ImGuiCond_FirstUseEver);
         ImGui::Begin("Console");
-        ImGui::End();
+        ImGui::End();*/
 
         //Create the Hierarchy
         ImGui::SetNextWindowSize({400, 800}, ImGuiCond_FirstUseEver);
         ImGui::Begin("Hierarchy");
+        scene->RenderImGui();
         ImGui::End();
 
         //Create the Inspector
         ImGui::SetNextWindowSize({400, 800}, ImGuiCond_FirstUseEver);
         ImGui::Begin("Inspector");
-        ImGui::End();*/
+        g1.RenderImGui();
+        //ImReflect::Input(g.name.c_str(), &g);
+        ImGui::End();
 
         //Render the UI
         ImGui::Render();

@@ -9,6 +9,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+#include "ImReflect.hpp"
 #include "Shader.h"
 
 
@@ -87,6 +88,5 @@ private:
 
     glm::mat4 transform;
 };
-
 
 #endif //STICKSENGINE_RENDERER_H
