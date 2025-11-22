@@ -54,27 +54,3 @@ void Scene::DebugPrint() {
         if (gameobject->IsEnabled()) gameobject->DebugPrint();
     }
 }
-
-void Scene::RenderImGui() {
-    ImGui::SeparatorText(name.c_str());
-    ImGui::InputText("Name", &name);
-    ImGui::Separator();
-
-    for (auto gobj: Hierarchy) {
-        RenderGameObjectHierachy(gobj);
-    }
-}
-
-void Scene::RenderGameObjectHierachy(GameObject *gobj) {
-    if (!gobj->children.empty()) {
-        if (ImGui::TreeNode((gobj->name + "###" + to_string(gobj->GetUUID())).c_str())) {
-            for (auto g: gobj->children) {
-                RenderGameObjectHierachy(g);
-            }
-            ImGui::TreePop();
-        }
-    } else {
-        ImGui::TreeNodeEx((gobj->name + "###" + to_string(gobj->GetUUID())).c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen);
-        //ImGui::TreePop();
-    }
-}

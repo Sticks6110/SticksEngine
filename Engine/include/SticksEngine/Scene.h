@@ -34,12 +34,8 @@ public:
 
     void DebugPrint();
 
-    void RenderImGui();
-
 private:
     boost::uuids::uuid uuid;
-
-    void RenderGameObjectHierachy(GameObject *gobj);
 };
 
 

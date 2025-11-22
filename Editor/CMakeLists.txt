@@ -4,6 +4,12 @@ add_executable(Editor src/main.cpp
         src/EditorWindow.h
         src/Windows/SceneWindow.cpp
         src/Windows/SceneWindow.h
+        src/Windows/HierarchyWindow.cpp
+        src/Windows/HierarchyWindow.h
+        src/Windows/InspectorWindow.cpp
+        src/Windows/InspectorWindow.h
+        src/EditorContext.cpp
+        src/EditorContext.h
 )
 target_link_libraries(Editor PRIVATE Engine)
 target_link_libraries(Editor PRIVATE SRC)

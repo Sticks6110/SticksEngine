@@ -17,8 +17,11 @@
 #include <SticksEngine/Render/Shader.h>
 #include <SticksEngine/Render/Renderer.h>
 
+#include "EditorContext.h"
 #include "SticksEngine/GameObject.h"
 #include "SticksEngine/Scene.h"
+#include "Windows/HierarchyWindow.h"
+#include "Windows/InspectorWindow.h"
 #include "Windows/SceneWindow.h"
 
 bool FPS_COUNTER = false;
@@ -79,6 +82,9 @@ int main() {
     //Flip STBI images vertically so they render the right way
     stbi_set_flip_vertically_on_load(true);
 
+    //Create the editor context
+    EditorContext context;
+
     //Test Scene
     Scene *scene = new Scene("Scene Name");
     GameObject g1(scene, "Game Object 1");
@@ -88,8 +94,13 @@ int main() {
     GameObject g5(scene, "Game Object 5");
     scene->DebugPrint();
 
-    //Create Scene Editor Window
+    //Set the scene in the context
+    context.scene = scene;
+
+    //Create Editor Windows
     SceneWindow scene_window(scene);
+    HierarchyWindow hierarchy_window;
+    InspectorWindow inspector_window;
 
     ///
     /// MAIN LOOP
@@ -183,37 +194,10 @@ int main() {
         //Create a docking space for the editor windows
         ImGui::DockSpaceOverViewport();
 
-        //Create Scene View
-        scene_window.Render(deltaTime);
-
-        //Create the File Views
-        //SRC
-        /*ImGui::SetNextWindowSize({800, 400}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Source Browser");
-        ImGui::End();
-
-        //ASSETS
-        ImGui::SetNextWindowSize({800, 400}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Assets Browser");
-        ImGui::End();
-
-        //Create the Console View
-        ImGui::SetNextWindowSize({800, 400}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Console");
-        ImGui::End();*/
-
-        //Create the Hierarchy
-        ImGui::SetNextWindowSize({400, 800}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Hierarchy");
-        scene->RenderImGui();
-        ImGui::End();
-
-        //Create the Inspector
-        ImGui::SetNextWindowSize({400, 800}, ImGuiCond_FirstUseEver);
-        ImGui::Begin("Inspector");
-        g1.RenderImGui();
-        //ImReflect::Input(g.name.c_str(), &g);
-        ImGui::End();
+        //Render editor windows
+        scene_window.Render(deltaTime, &context);
+        hierarchy_window.Render(deltaTime, &context);
+        inspector_window.Render(deltaTime, &context);
 
         //Render the UI
         ImGui::Render();

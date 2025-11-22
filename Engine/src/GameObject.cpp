@@ -90,24 +90,6 @@ boost::uuids::uuid GameObject::GetUUID() {
     return uuid;
 }
 
-void GameObject::RenderImGui() {
-    float pos[3] = {position.x, position.y, position.z};
-    float rot[3] = {rotation.x, rotation.y, rotation.z};
-    float sca[3] = {scale.x, scale.y, scale.z};
-
-    bool ena = IsEnabled();
-    ImGui::SeparatorText(name.c_str());
-    if (ImGui::Checkbox(" ", &ena)) {
-        Toggle(ena);
-    }
-    ImGui::SameLine();
-    ImGui::InputText("Name", &name);
-
-    ImGui::InputFloat3("Position", pos);
-    ImGui::InputFloat3("Rotation", rot);
-    ImGui::InputFloat3("Scale", sca);
-}
-
 void GameObject::DebugPrint() {
     std::cout << uuid << "  |  " << name << std::endl;
     for (auto &child: children) {

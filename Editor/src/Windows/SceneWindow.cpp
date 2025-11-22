@@ -53,7 +53,7 @@ SceneWindow::SceneWindow(Scene *scene) : scene(scene), renderer(Renderer::Render
     shader1.setInt("uTexture2", 1);
 }
 
-void SceneWindow::Render(float deltaTime) {
+void SceneWindow::Render(float deltaTime, EditorContext *context) {
     ImGui::SetNextWindowSize({800, 600}, ImGuiCond_FirstUseEver);
     ImGui::Begin("Scene");
 

@@ -16,7 +16,7 @@ class SceneWindow : public EditorWindow {
 public:
     SceneWindow(Scene *scene);
 
-    void Render(float deltaTime) override;
+    void Render(float deltaTime, EditorContext *context) override;
 
 private:
     Renderer renderer;

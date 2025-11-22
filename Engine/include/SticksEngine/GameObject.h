@@ -46,8 +46,6 @@ public:
 
     boost::uuids::uuid GetUUID();
 
-    void RenderImGui();
-
     void DebugPrint();
 
 private:
